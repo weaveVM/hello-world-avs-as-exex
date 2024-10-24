@@ -1,0 +1,19 @@
+[package]
+name = "exex-avs-operator"
+edition = "2021"
+resolver = "2"
+
+[dependencies]
+async-trait = "0.1.82"
+eyre = "0.6"
+web3 = "0.19.0"
+hex-literal = "0.4.1"
+hex = "0.4.3"
+serde = "1.0.210"
+serde_json = "1.0.128"
+futures-util = "0.3" 
+tokio = { version = "1.39", default-features = false }
+reth = { git = "https://github.com/paradigmxyz/reth.git" }               
+reth-exex = { git = "https://github.com/paradigmxyz/reth.git" }       
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth.git" } 
+reth-tracing = { git = "https://github.com/paradigmxyz/reth.git" }      
