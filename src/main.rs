@@ -1,9 +1,9 @@
+use crate::utils::monitor_tasks::{get_provider_and_avs_manager, monitor_new_tasks_of_block};
 use futures::{Future, TryStreamExt};
 use reth_exex::{ExExContext, ExExEvent, ExExNotification};
 use reth_node_api::FullNodeComponents;
 use reth_node_ethereum::EthereumNode;
 use reth_tracing::tracing::info;
-use crate::utils::monitor_tasks::{monitor_new_tasks_of_block, get_provider_and_avs_manager};
 
 mod utils;
 
@@ -31,8 +31,11 @@ async fn exex_operator<Node: FullNodeComponents>(mut ctx: ExExContext<Node>) -> 
         if let Some(committed_chain) = notification.committed_chain() {
             let block_number: u32 = committed_chain.tip().number.try_into().unwrap();
             // monitor the AVS Service Manager tasks
-            monitor_new_tasks_of_block(provider.clone(), avs_manager, block_number).await.unwrap();
-            ctx.events.send(ExExEvent::FinishedHeight(committed_chain.tip().num_hash()))?;
+            monitor_new_tasks_of_block(provider.clone(), avs_manager, block_number)
+                .await
+                .unwrap();
+            ctx.events
+                .send(ExExEvent::FinishedHeight(committed_chain.tip().num_hash()))?;
         }
     }
 

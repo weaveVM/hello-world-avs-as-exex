@@ -1,15 +1,17 @@
+use crate::utils::constants::HELLO_WORLD_CONTRACT_ADDRESS;
+use dotenv::dotenv;
 use ethers::prelude::*;
 use ethers::signers::LocalWallet;
 use ethers::utils::keccak256;
-use dotenv::dotenv;
 use eyre::Result;
 use once_cell::sync::Lazy;
-use std::{env, sync::Arc, str::FromStr};
-use crate::utils::constants::HELLO_WORLD_CONTRACT_ADDRESS;
+use std::{env, str::FromStr, sync::Arc};
 
 // Environment variables
-static KEY: Lazy<String> = Lazy::new(|| env::var("HOLESKY_PRIVATE_KEY").expect("Private key not set"));
-pub static RPC_URL: Lazy<String> = Lazy::new(|| env::var("HOLESKY_RPC_URL").expect("RPC URL not set"));
+static KEY: Lazy<String> =
+    Lazy::new(|| env::var("HOLESKY_PRIVATE_KEY").expect("Private key not set"));
+pub static RPC_URL: Lazy<String> =
+    Lazy::new(|| env::var("HOLESKY_RPC_URL").expect("RPC URL not set"));
 
 // Generate contract bindings
 abigen!(
@@ -23,7 +25,13 @@ pub async fn get_provider_and_avs_manager() -> Result<(Provider<Http>, Address)>
     Ok((provider, contract_address))
 }
 
-async fn sign_and_respond_to_task(provider: Provider<Http>, contract_address: H160, task_index: u32, name: String, task_created_block: u32) -> Result<()> {
+async fn sign_and_respond_to_task(
+    provider: Provider<Http>,
+    contract_address: H160,
+    task_index: u32,
+    name: String,
+    task_created_block: u32,
+) -> Result<()> {
     let wallet = LocalWallet::from_str(&KEY)?;
     let client = Arc::new(SignerMiddleware::new(provider, wallet.clone()));
     let contract = HelloWorldServiceManager::new(contract_address, client);
@@ -45,11 +53,7 @@ async fn sign_and_respond_to_task(provider: Provider<Http>, contract_address: H1
 
     // Send the transaction
     contract
-        .respond_to_task(
-            task,
-            task_index,
-            signature.to_vec().into(),
-        )
+        .respond_to_task(task, task_index, signature.to_vec().into())
         .send()
         .await?
         .await?;
@@ -58,16 +62,21 @@ async fn sign_and_respond_to_task(provider: Provider<Http>, contract_address: H1
     Ok(())
 }
 
-pub async fn monitor_new_tasks_of_block(provider: Provider<Http>, contract_address: H160, block_number: u32) -> Result<()> {
+pub async fn monitor_new_tasks_of_block(
+    provider: Provider<Http>,
+    contract_address: H160,
+    block_number: u32,
+) -> Result<()> {
     dotenv().ok();
-    let client = Arc::new(SignerMiddleware::new(provider.clone(), LocalWallet::from_str(&KEY)?));
+    let client = Arc::new(SignerMiddleware::new(
+        provider.clone(),
+        LocalWallet::from_str(&KEY)?,
+    ));
     let contract = HelloWorldServiceManager::new(contract_address, client.clone());
 
     println!("Starting task monitoring from block {}", block_number);
 
-    let filter = contract
-        .new_task_created_filter()
-        .from_block(block_number);
+    let filter = contract.new_task_created_filter().from_block(block_number);
 
     loop {
         let events = contract
