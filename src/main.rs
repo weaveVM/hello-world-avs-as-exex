@@ -30,8 +30,9 @@ async fn exex_operator<Node: FullNodeComponents>(mut ctx: ExExContext<Node>) -> 
 
         if let Some(committed_chain) = notification.committed_chain() {
             let block_number: u32 = committed_chain.tip().number.try_into().unwrap();
+            let last_block = committed_chain.tip();
             // monitor the AVS Service Manager tasks
-            monitor_new_tasks_of_block(provider.clone(), avs_manager, block_number)
+            monitor_new_tasks_of_block(provider.clone(), avs_manager, block_number, last_block)
                 .await
                 .unwrap();
             ctx.events

@@ -5,9 +5,9 @@ use ethers::signers::LocalWallet;
 use ethers::utils::keccak256;
 use eyre::Result;
 use once_cell::sync::Lazy;
+use reth::primitives::SealedBlockWithSenders;
 use std::{env, str::FromStr, sync::Arc};
 
-// Environment variables
 static KEY: Lazy<String> =
     Lazy::new(|| env::var("HOLESKY_PRIVATE_KEY").expect("Private key not set"));
 pub static RPC_URL: Lazy<String> =
@@ -35,23 +35,17 @@ async fn sign_and_respond_to_task(
     let wallet = LocalWallet::from_str(&KEY)?;
     let client = Arc::new(SignerMiddleware::new(provider, wallet.clone()));
     let contract = HelloWorldServiceManager::new(contract_address, client);
-
-    // Create the message to sign
     let message = format!("Hello, {}", name);
     let msg_hash = keccak256(message.as_bytes());
-
-    // Sign the message
     let signature = wallet.sign_message(&msg_hash).await?;
 
     println!("Signing and responding to task {}", task_index);
 
-    // Create the Task struct using the generated type
     let task = hello_world_service_manager::Task {
         name: name.clone(),
         task_created_block,
     };
 
-    // Send the transaction
     contract
         .respond_to_task(task, task_index, signature.to_vec().into())
         .send()
@@ -66,7 +60,9 @@ pub async fn monitor_new_tasks_of_block(
     provider: Provider<Http>,
     contract_address: H160,
     block_number: u32,
+    last_block_from_exex: &SealedBlockWithSenders,
 ) -> Result<()> {
+    // now you can use the last block sent by the ExEx for EDAs in the code logic
     dotenv().ok();
     let client = Arc::new(SignerMiddleware::new(
         provider.clone(),
