@@ -1,1 +1,2 @@
-pub mod avs_contract;
+pub mod monitor_tasks;
+pub mod constants;

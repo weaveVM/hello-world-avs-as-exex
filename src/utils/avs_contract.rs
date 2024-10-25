@@ -7,11 +7,13 @@ use web3::signing::{Key, SecretKey, SecretKeyRef};
 use web3::transports::Http;
 use web3::types::{Address, BlockId, TransactionReceipt};
 
+#[derive(Debug)]
 pub enum ExExAvsResult<R> {
     Success(web3::contract::Result<R>),
     Err(String),
 }
 
+#[derive(Debug)]
 pub struct ExExAvsOperator {
     pub pk: String,
     pub pks: SecretKey,
