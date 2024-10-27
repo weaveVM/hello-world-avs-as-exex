@@ -8,7 +8,7 @@ use ethers::signers::LocalWallet;
 use ethers::utils::keccak256;
 use eyre::Result;
 use once_cell::sync::Lazy;
-use reth::primitives::{Log, Receipt};
+use reth::primitives::{Log, Receipt, SealedBlockWithSenders};
 use std::{env, str::FromStr, sync::Arc};
 use zerocopy::IntoBytes;
 
@@ -92,12 +92,14 @@ pub async fn decode_new_task_created_event(
 pub async fn monitor_new_tasks_of_block(
     provider: Provider<Http>,
     contract_address: Address,
-    last_block_transactions_receipts: Vec<Option<Receipt>>,
+    current_block_transactions_receipts: Vec<Option<Receipt>>,
+    current_sealed_block_with_senders: &SealedBlockWithSenders,
 ) -> Result<()> {
+    // now you can use current_sealed_block_with_senders for EDA task scanning purposes
     let event_signature = H256::from_str(NEW_TASK_CREATED_EVENT_NAME)?;
 
     let mut filtered_logs: Vec<Log> = Vec::new();
-    for receipt in last_block_transactions_receipts.into_iter().flatten() {
+    for receipt in current_block_transactions_receipts.into_iter().flatten() {
         for log in receipt.logs {
             if log.address == Address::from(contract_address).as_bytes()
                 && !log.topics().is_empty()
