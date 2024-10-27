@@ -15,6 +15,7 @@ async fn exex_init<Node: FullNodeComponents>(
 
 async fn exex_operator<Node: FullNodeComponents>(mut ctx: ExExContext<Node>) -> eyre::Result<()> {
     let (provider, avs_manager) = get_provider_and_avs_manager().await.unwrap();
+
     while let Some(notification) = ctx.notifications.try_next().await? {
         match &notification {
             ExExNotification::ChainCommitted { new } => {
@@ -29,12 +30,21 @@ async fn exex_operator<Node: FullNodeComponents>(mut ctx: ExExContext<Node>) -> 
         };
 
         if let Some(committed_chain) = notification.committed_chain() {
-            let block_number: u32 = committed_chain.tip().number.try_into().unwrap();
-            let last_block = committed_chain.tip();
+            // Get all block's receipts
+            let last_block_transactions_receipts = committed_chain
+                .blocks_and_receipts()
+                // Flat map the (block, receipts) tuple to just receipts
+                .flat_map(|(_block, receipts)| receipts.iter().cloned())
+                .collect();
+
             // monitor the AVS Service Manager tasks
-            monitor_new_tasks_of_block(provider.clone(), avs_manager, block_number, last_block)
-                .await
-                .unwrap();
+            monitor_new_tasks_of_block(
+                provider.clone(),
+                avs_manager,
+                last_block_transactions_receipts,
+            )
+            .await
+            .unwrap();
             ctx.events
                 .send(ExExEvent::FinishedHeight(committed_chain.tip().num_hash()))?;
         }

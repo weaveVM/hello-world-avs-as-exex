@@ -1,1 +1,4 @@
+pub const NEW_TASK_CREATED_EVENT_NAME: &str =
+    "0x58180a6a0403a63c2b5ce4b85d129d46a80d37851b2216bd0a98b59e7309b847";
 pub const HELLO_WORLD_CONTRACT_ADDRESS: &str = "0x3361953F4a9628672dCBcDb29e91735fb1985390";
+pub const HOLESKY_RPC_URL: &str = "https://holesky.drpc.org";
