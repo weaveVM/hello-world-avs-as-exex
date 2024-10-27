@@ -1,14 +1,16 @@
-use crate::utils::constants::{HELLO_WORLD_CONTRACT_ADDRESS, HOLESKY_RPC_URL, NEW_TASK_CREATED_EVENT_NAME};
+use crate::utils::constants::{
+    HELLO_WORLD_CONTRACT_ADDRESS, HOLESKY_RPC_URL, NEW_TASK_CREATED_EVENT_NAME,
+};
 use dotenv::dotenv;
+use ethers::abi::ParamType;
 use ethers::prelude::*;
 use ethers::signers::LocalWallet;
 use ethers::utils::keccak256;
 use eyre::Result;
 use once_cell::sync::Lazy;
-use reth::primitives::{Receipt, Log};
+use reth::primitives::{Log, Receipt};
 use std::{env, str::FromStr, sync::Arc};
 use zerocopy::IntoBytes;
-use ethers::abi::ParamType;
 
 static KEY: Lazy<String> =
     Lazy::new(|| env::var("HOLESKY_PRIVATE_KEY").expect("Private key not set"));
@@ -57,73 +59,72 @@ async fn sign_and_respond_to_task(
     Ok(())
 }
 
-    pub async fn decode_new_task_created_event(
-        log: &Log,
-    ) -> Result<(u32, hello_world_service_manager::Task)> {
-        // Get task index from first topic (index 1 since index 0 is event signature) 
-        let task_index = u32::from_be_bytes(log.topics()[1].as_bytes()[28..32].try_into()?);
-    
-        // Directly use the Bytes from LogData
-        let data_bytes: &[u8] = log.data.data.as_ref();
-        
-        // Decode non-indexed parameters (the Task struct)
-        let decoded = ethers::abi::decode(
-            &[
-                ParamType::Tuple(vec![
-                    ParamType::String,    // name
-                    ParamType::Uint(32),  // taskCreatedBlock
-                ])
-            ],
-            data_bytes
-        )?;
-    
-        if let ethers::abi::Token::Tuple(values) = &decoded[0] {
-            let task = hello_world_service_manager::Task {
-                name: values[0].clone().into_string().unwrap(),
-                task_created_block: values[1].clone().into_uint().unwrap().as_u32(),
-            };
-            
-            Ok((task_index, task))
-        } else {
-            Err(eyre::eyre!("Failed to decode task data"))
+pub async fn decode_new_task_created_event(
+    log: &Log,
+) -> Result<(u32, hello_world_service_manager::Task)> {
+    // Get task index from first topic (index 1 since index 0 is event signature)
+    let task_index = u32::from_be_bytes(log.topics()[1].as_bytes()[28..32].try_into()?);
+
+    // Directly use the Bytes from LogData
+    let data_bytes: &[u8] = log.data.data.as_ref();
+
+    // Decode non-indexed parameters (the Task struct)
+    let decoded = ethers::abi::decode(
+        &[ParamType::Tuple(vec![
+            ParamType::String,   // name
+            ParamType::Uint(32), // taskCreatedBlock
+        ])],
+        data_bytes,
+    )?;
+
+    if let ethers::abi::Token::Tuple(values) = &decoded[0] {
+        let task = hello_world_service_manager::Task {
+            name: values[0].clone().into_string().unwrap(),
+            task_created_block: values[1].clone().into_uint().unwrap().as_u32(),
+        };
+
+        Ok((task_index, task))
+    } else {
+        Err(eyre::eyre!("Failed to decode task data"))
+    }
+}
+
+pub async fn monitor_new_tasks_of_block(
+    provider: Provider<Http>,
+    contract_address: Address,
+    last_block_transactions_receipts: Vec<Option<Receipt>>,
+) -> Result<()> {
+    let event_signature = H256::from_str(NEW_TASK_CREATED_EVENT_NAME)?;
+
+    let mut filtered_logs: Vec<Log> = Vec::new();
+    for receipt in last_block_transactions_receipts.into_iter().flatten() {
+        for log in receipt.logs {
+            if log.address == Address::from(contract_address).as_bytes()
+                && !log.topics().is_empty()
+                && log.topics()[0] == event_signature.as_bytes()
+            {
+                filtered_logs.push(log);
+            }
         }
     }
 
-    pub async fn monitor_new_tasks_of_block(
-        provider: Provider<Http>,
-        contract_address: Address,
-        last_block_transactions_receipts: Vec<Option<Receipt>>,
-    ) -> Result<()> {
-        let event_signature = H256::from_str(NEW_TASK_CREATED_EVENT_NAME)?;
-        
-        let mut filtered_logs: Vec<Log> = Vec::new();
-        for receipt in last_block_transactions_receipts.into_iter().flatten() {
-            for log in receipt.logs {
-                if log.address == Address::from(contract_address).as_bytes() && 
-                   !log.topics().is_empty() && 
-                   log.topics()[0] == event_signature.as_bytes() {
-                    filtered_logs.push(log);
-                }
+    for log in &filtered_logs {
+        match decode_new_task_created_event(log).await {
+            Ok((task_index, task)) => {
+                println!("New task detected at index {:?}", task_index);
+
+                sign_and_respond_to_task(
+                    provider.clone(),
+                    contract_address,
+                    task_index,
+                    task.name,
+                    task.task_created_block,
+                )
+                .await?;
             }
+            Err(e) => println!("Failed to decode event: {}", e),
         }
-    
-        for log in &filtered_logs {
-            match decode_new_task_created_event(log).await {
-                Ok((task_index, task)) => {
-                    println!("New task detected at index {:?}", task_index);
-                    
-                    sign_and_respond_to_task(
-                        provider.clone(),
-                        contract_address,
-                        task_index,
-                        task.name,
-                        task.task_created_block,
-                    )
-                    .await?;
-                },
-                Err(e) => println!("Failed to decode event: {}", e),
-            }
-        }
-    
-        Ok(())
     }
+
+    Ok(())
+}
