@@ -26,7 +26,7 @@ First of all, make sure to setup your `.env` file according to [.env.example](./
 ```bash
 git clone https://github.com/weaveVM/hello-world-avs-as-exex.git
 
-cd hello-world-aws-as-exex
+cd hello-world-avs-as-exex
 
 cargo build
 
@@ -34,6 +34,7 @@ cargo run -- init --chain holesky --datadir data
 
 cargo run node
 ```
+#### N.B: you need to run a CL along the EL (Reth). [Checkout Lighthouse](https://reth.rs/run/mainnet.html#running-the-consensus-layer)
 
 ## License
 This project is licensed under the [MIT License](./LICENSE)
